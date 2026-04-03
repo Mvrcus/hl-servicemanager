@@ -5,8 +5,8 @@ compatibility_date = "2024-12-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "hl-servicemanager-db"
-database_id = "local"
+database_id = "5dd95ef9-6a74-40d1-a381-17b90289d017"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "local"
+id = "62186431a1074b56bf7eb99e72132354"
