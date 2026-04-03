@@ -1,0 +1,12 @@
+name = "hl-servicemanager"
+main = "src/index.tsx"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hl-servicemanager-db"
+database_id = "local"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "local"
