@@ -16,34 +16,38 @@ app.get('/', (c) => {
   const error = c.req.query('error');
   return c.html(
     <Layout title="Welcome">
-      <div class="hero">
-        <h1>HL Service Manager</h1>
-        <p>Submit requests, track progress, and collaborate with your service provider.</p>
+      <div class="hero-page">
+        <div class="hero-card">
+          <div class="hero-logo">
+            <span class="hero-logo-icon">HL</span>
+            <span>Service Manager</span>
+          </div>
+          <p style="text-align: center; margin-bottom: 1.5rem;">
+            Enter your email to access your dashboard.
+          </p>
+          <Flash
+            message={error === 'not_found' ? 'No organization found for that email domain. Contact your service provider.' : error === 'invalid' ? 'Please enter a valid email address.' : undefined}
+            type="error"
+          />
+          <form method="POST" action="/auth/login">
+            <label>
+              Email address
+              <input
+                type="email"
+                name="email"
+                placeholder="you@yourcompany.com"
+                required
+                autofocus
+              />
+            </label>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.7rem;">Access Dashboard</button>
+          </form>
+          <hr />
+          <div style="text-align: center;">
+            <small><a href="/admin/login">Admin login</a></small>
+          </div>
+        </div>
       </div>
-      <article style="max-width: 420px; margin: 0 auto;">
-        <Flash
-          message={error === 'not_found' ? 'No organization found for that email domain. Contact your service provider.' : error === 'invalid' ? 'Please enter a valid email address.' : undefined}
-          type="error"
-        />
-        <h3>Client Login</h3>
-        <form method="POST" action="/auth/login">
-          <label>
-            Email address
-            <input
-              type="email"
-              name="email"
-              placeholder="you@yourcompany.com"
-              required
-              autofocus
-            />
-          </label>
-          <button type="submit">Access Dashboard</button>
-        </form>
-        <hr />
-        <small>
-          <a href="/admin/login">Admin login</a>
-        </small>
-      </article>
     </Layout>
   );
 });
@@ -81,28 +85,33 @@ app.get('/admin/login', (c) => {
   const error = c.req.query('error');
   return c.html(
     <Layout title="Admin Login">
-      <article style="max-width: 420px; margin: 2rem auto;">
-        <Flash
-          message={error === 'invalid' ? 'Invalid username or password.' : undefined}
-          type="error"
-        />
-        <h3>Admin Login</h3>
-        <form method="POST" action="/admin/login">
-          <label>
-            Username
-            <input type="text" name="username" required autofocus />
-          </label>
-          <label>
-            Password
-            <input type="password" name="password" required />
-          </label>
-          <button type="submit">Login</button>
-        </form>
-        <hr />
-        <small>
-          <a href="/">Back to client login</a>
-        </small>
-      </article>
+      <div class="hero-page">
+        <div class="hero-card">
+          <div class="hero-logo">
+            <span class="hero-logo-icon">HL</span>
+            <span>Service Manager</span>
+          </div>
+          <Flash
+            message={error === 'invalid' ? 'Invalid username or password.' : undefined}
+            type="error"
+          />
+          <form method="POST" action="/admin/login">
+            <label>
+              Username
+              <input type="text" name="username" required autofocus />
+            </label>
+            <label>
+              Password
+              <input type="password" name="password" required />
+            </label>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.7rem;">Login</button>
+          </form>
+          <hr />
+          <div style="text-align: center;">
+            <small><a href="/">Back to client login</a></small>
+          </div>
+        </div>
+      </div>
     </Layout>
   );
 });

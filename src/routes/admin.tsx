@@ -32,19 +32,33 @@ const app = new Hono<Env>();
 // Admin auth on all routes except login (handled in public.tsx)
 app.use('*', adminAuth);
 
-const adminNav = (
+const adminNav = (active: string) => (
   <>
-    <li><a href="/admin">Dashboard</a></li>
-    <li><a href="/admin/orgs">Organizations</a></li>
-    <li><a href="/admin/tickets">All Tickets</a></li>
-    <li><a href="/admin/settings">Settings</a></li>
-    <li>
-      <form method="POST" action="/auth/logout" style="margin:0">
-        <button type="submit" class="outline secondary" style="padding: 0.25rem 0.75rem; margin: 0;">
-          Logout
-        </button>
+    <div class="nav-section">
+      <div class="nav-section-label">Admin</div>
+      <a href="/admin" class={`nav-link ${active === 'dashboard' ? 'active' : ''}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a href="/admin/orgs" class={`nav-link ${active === 'orgs' ? 'active' : ''}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Organizations
+      </a>
+      <a href="/admin/tickets" class={`nav-link ${active === 'tickets' ? 'active' : ''}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        All Tickets
+      </a>
+      <a href="/admin/settings" class={`nav-link ${active === 'settings' ? 'active' : ''}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+    </div>
+    <div class="nav-footer">
+      <small style="display:block; margin-bottom:0.4rem; color:var(--text-muted); padding:0 0.25rem;">Admin</small>
+      <form method="POST" action="/auth/logout">
+        <button type="submit">Sign out</button>
       </form>
-    </li>
+    </div>
   </>
 );
 
@@ -54,20 +68,22 @@ app.get('/', async (c) => {
   const orgs = await getAllOrgs(c.env.DB);
 
   return c.html(
-    <Layout title="Admin Dashboard" nav={adminNav}>
-      <h2>Admin Dashboard</h2>
+    <Layout title="Admin Dashboard" nav={adminNav('dashboard')}>
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p>Overview of all organizations and tickets.</p>
+        <div class="page-actions">
+          <a href="/admin/tickets" class="btn btn-primary">View All Tickets</a>
+          <a href="/admin/orgs" class="btn btn-outline">Manage Organizations</a>
+        </div>
+      </div>
 
       <div class="stats">
         <StatCard label="Organizations" value={orgs.length} />
         <StatCard label="Open" value={counts.open} />
         <StatCard label="In Progress" value={counts.in_progress} />
         <StatCard label="Waiting" value={counts.waiting} />
-        <StatCard label="Total Tickets" value={counts.total} />
-      </div>
-
-      <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-        <a href="/admin/tickets" role="button">View All Tickets</a>
-        <a href="/admin/orgs" role="button" class="outline">Manage Organizations</a>
+        <StatCard label="Total" value={counts.total} />
       </div>
     </Layout>
   );
@@ -79,14 +95,18 @@ app.get('/orgs', async (c) => {
   const msg = c.req.query('msg');
 
   return c.html(
-    <Layout title="Organizations" nav={adminNav}>
-      <h2>Organizations</h2>
+    <Layout title="Organizations" nav={adminNav('orgs')}>
+      <div class="page-header">
+        <h2>Organizations</h2>
+      </div>
       <Flash message={msg === 'created' ? 'Organization created!' : undefined} />
 
-      <article>
-        <h4>Add Organization</h4>
+      <div class="card">
+        <div class="card-header">
+          <h4>Add Organization</h4>
+        </div>
         <form method="POST" action="/admin/orgs">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="grid-2">
             <label>
               Name
               <input type="text" name="name" required placeholder="Agency XYZ" />
@@ -100,37 +120,39 @@ app.get('/orgs', async (c) => {
             About / Notes
             <textarea name="about" rows={3} placeholder="Project details, notes for the client..."></textarea>
           </label>
-          <button type="submit">Create Organization</button>
+          <button type="submit" class="btn btn-primary">Create Organization</button>
         </form>
-      </article>
+      </div>
 
       {orgs.length === 0 ? (
-        <p>No organizations yet.</p>
+        <div class="card" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+          <p class="mb-0">No organizations yet.</p>
+        </div>
       ) : (
-        <figure>
+        <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Domain</th>
                 <th>Created</th>
-                <th>Actions</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {orgs.map((org) => (
                 <tr>
-                  <td>{org.name}</td>
-                  <td>{org.domain}</td>
+                  <td style="font-weight:500; color:var(--text);">{org.name}</td>
+                  <td><code>{org.domain}</code></td>
                   <td>{new Date(org.created_at + 'Z').toLocaleDateString()}</td>
                   <td>
-                    <a href={`/admin/orgs/${org.id}`}>View</a>
+                    <a href={`/admin/orgs/${org.id}`} class="btn btn-outline btn-sm">View</a>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </figure>
+        </div>
       )}
     </Layout>
   );
@@ -159,7 +181,7 @@ app.get('/orgs/:id', async (c) => {
   const counts = await getTicketCounts(c.env.DB, id);
 
   return c.html(
-    <Layout title={org.name} nav={adminNav}>
+    <Layout title={org.name} nav={adminNav('orgs')}>
       <a href="/admin/orgs">&larr; Back to organizations</a>
       <h2>{org.name}</h2>
       <p>Domain: <strong>{org.domain}</strong></p>
@@ -187,47 +209,20 @@ app.get('/tickets', async (c) => {
     : tickets;
 
   return c.html(
-    <Layout title="All Tickets" nav={adminNav}>
-      <h2>All Tickets</h2>
-
-      <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
-        <a href="/admin/tickets" role="button" class={!statusFilter ? '' : 'outline'} style="padding: 0.25rem 0.75rem;">All</a>
-        <a href="/admin/tickets?status=open" role="button" class={statusFilter === 'open' ? '' : 'outline'} style="padding: 0.25rem 0.75rem;">Open</a>
-        <a href="/admin/tickets?status=in_progress" role="button" class={statusFilter === 'in_progress' ? '' : 'outline'} style="padding: 0.25rem 0.75rem;">In Progress</a>
-        <a href="/admin/tickets?status=waiting" role="button" class={statusFilter === 'waiting' ? '' : 'outline'} style="padding: 0.25rem 0.75rem;">Waiting</a>
-        <a href="/admin/tickets?status=closed" role="button" class={statusFilter === 'closed' ? '' : 'outline'} style="padding: 0.25rem 0.75rem;">Closed</a>
+    <Layout title="All Tickets" nav={adminNav('tickets')}>
+      <div class="page-header">
+        <h2>All Tickets</h2>
       </div>
 
-      {filtered.length === 0 ? (
-        <p>No tickets found.</p>
-      ) : (
-        <figure>
-          <table>
-            <thead>
-              <tr>
-                <th>Subject</th>
-                <th>Organization</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Submitted by</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((t) => (
-                <tr>
-                  <td><a href={`/admin/tickets/${t.id}`}>{t.subject}</a></td>
-                  <td>{t.org_name}</td>
-                  <td><StatusBadge status={t.status} /></td>
-                  <td><PriorityBadge priority={t.priority} /></td>
-                  <td>{t.submitted_by}</td>
-                  <td>{new Date(t.created_at + 'Z').toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </figure>
-      )}
+      <div class="filters">
+        <a href="/admin/tickets" class={`filter-pill ${!statusFilter ? 'active' : ''}`}>All</a>
+        <a href="/admin/tickets?status=open" class={`filter-pill ${statusFilter === 'open' ? 'active' : ''}`}>Open</a>
+        <a href="/admin/tickets?status=in_progress" class={`filter-pill ${statusFilter === 'in_progress' ? 'active' : ''}`}>In Progress</a>
+        <a href="/admin/tickets?status=waiting" class={`filter-pill ${statusFilter === 'waiting' ? 'active' : ''}`}>Waiting</a>
+        <a href="/admin/tickets?status=closed" class={`filter-pill ${statusFilter === 'closed' ? 'active' : ''}`}>Closed</a>
+      </div>
+
+      <TicketTable tickets={filtered} basePath="/admin/tickets" showOrg={true} />
     </Layout>
   );
 });
@@ -242,9 +237,8 @@ app.get('/tickets/:id', async (c) => {
   const msg = c.req.query('msg');
 
   return c.html(
-    <Layout title={ticket.subject} nav={adminNav}>
-      <a href="/admin/tickets">&larr; Back to tickets</a>
-      <h2>{ticket.subject}</h2>
+    <Layout title={ticket.subject} nav={adminNav('tickets')}>
+      <a href="/admin/tickets" class="back-link">&larr; Back to tickets</a>
       <Flash
         message={
           msg === 'updated' ? 'Ticket updated.' :
@@ -253,23 +247,25 @@ app.get('/tickets/:id', async (c) => {
         }
       />
 
-      <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
-        <StatusBadge status={ticket.status} />
-        <PriorityBadge priority={ticket.priority} />
-        <small style="color: var(--pico-muted-color)">
-          {ticket.org_name} — {ticket.submitted_by} —{' '}
-          {new Date(ticket.created_at + 'Z').toLocaleDateString()}
-        </small>
+      <div class="card" style="margin-bottom: 1rem;">
+        <div style="display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3 class="mb-0">{ticket.subject}</h3>
+            <small>{ticket.org_name} — {ticket.submitted_by} — {new Date(ticket.created_at + 'Z').toLocaleDateString()}</small>
+          </div>
+          <div class="flex-row gap-sm">
+            <StatusBadge status={ticket.status} />
+            <PriorityBadge priority={ticket.priority} />
+          </div>
+        </div>
+        <hr />
+        <p class="mb-0" style="color: var(--text);">{ticket.description}</p>
       </div>
 
-      <article>
-        <p>{ticket.description}</p>
-      </article>
-
-      <article>
+      <div class="card" style="margin-bottom: 1.5rem;">
         <h4>Update Ticket</h4>
         <form method="POST" action={`/admin/tickets/${id}`}>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="grid-2">
             <label>
               Status
               <select name="status">
@@ -291,29 +287,31 @@ app.get('/tickets/:id', async (c) => {
               </select>
             </label>
           </div>
-          <button type="submit">Update</button>
+          <button type="submit" class="btn btn-primary">Update</button>
         </form>
-      </article>
+      </div>
 
       <h4>Comments</h4>
       {comments.length === 0 && <p>No comments yet.</p>}
       {comments.map((comment) => (
         <div class={`comment ${comment.author === 'admin' ? 'comment-admin' : ''}`}>
           <div class="comment-meta">
-            <strong>{comment.author === 'admin' ? 'Service Provider' : comment.author}</strong>{' '}
-            — {new Date(comment.created_at + 'Z').toLocaleString()}
+            <strong>{comment.author === 'admin' ? 'Service Provider' : comment.author}</strong>
+            <span>{new Date(comment.created_at + 'Z').toLocaleString()}</span>
           </div>
-          <p style="margin:0">{comment.body}</p>
+          <p>{comment.body}</p>
         </div>
       ))}
 
-      <form method="POST" action={`/admin/tickets/${id}/comments`} style="margin-top: 1rem;">
-        <label>
-          Reply
-          <textarea name="body" required rows={3} placeholder="Type your reply..."></textarea>
-        </label>
-        <button type="submit">Post Reply</button>
-      </form>
+      <div class="card mt-1">
+        <form method="POST" action={`/admin/tickets/${id}/comments`}>
+          <label>
+            Reply
+            <textarea name="body" required rows={3} placeholder="Type your reply..."></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary">Post Reply</button>
+        </form>
+      </div>
     </Layout>
   );
 });
@@ -386,7 +384,7 @@ app.get('/settings', async (c) => {
   const msg = c.req.query('msg');
 
   return c.html(
-    <Layout title="Settings" nav={adminNav}>
+    <Layout title="Settings" nav={adminNav('settings')}>
       <h2>Settings</h2>
       <Flash
         message={
@@ -410,8 +408,8 @@ app.get('/settings', async (c) => {
         type="error"
       />
 
-      <article>
-        <h4>Company Profile</h4>
+      <div class="card">
+        <div class="card-header"><h4>Company Profile</h4></div>
         <form method="POST" action="/admin/settings">
           <label>
             Company Name
@@ -445,82 +443,87 @@ app.get('/settings', async (c) => {
             <small>GoHighLevel or other webhook endpoint for sending emails</small>
           </label>
 
-          <button type="submit">Save Settings</button>
+          <button type="submit" class="btn btn-primary">Save Settings</button>
         </form>
-      </article>
+      </div>
 
-      <article>
-        <h4>Email Integration Setup</h4>
+      <div class="card">
+        <div class="card-header"><h4>Email Integration Setup</h4></div>
         {(() => {
           const status = settings.email_setup_status || 'not_started';
           const hasConfig = settings.webhook_url && settings.admin_email;
 
           return (
             <>
-              <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
-                <span class={`badge ${status !== 'not_started' ? 'badge-closed' : 'badge-open'}`}>Step 1</span>
-                <span class={`badge ${status === 'confirmed' ? 'badge-closed' : 'badge-open'}`}>Step 2</span>
-                <span class={`badge ${status === 'confirmed' ? 'badge-closed' : 'badge-waiting'}`}>Step 3</span>
+              <div class="flex-row gap-sm mb-1">
+                <span class={`step-num ${status !== 'not_started' ? 'complete' : ''}`}>1</span>
+                <span class={`step-num ${status === 'confirmed' ? 'complete' : ''}`}>2</span>
+                <span class={`step-num ${status === 'confirmed' ? 'complete' : ''}`}>3</span>
               </div>
 
-              {/* Step 1: Send setup payload */}
-              <div style={`opacity: ${status === 'not_started' ? '1' : '0.6'}; margin-bottom: 1.5rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 8px;`}>
-                <h5>Step 1: Send Setup Payload {status !== 'not_started' && <span class="badge badge-closed">done</span>}</h5>
-                <p>This sends a sample webhook with all fields to your endpoint so you can map them in GoHighLevel.</p>
-                <p><small>Fields sent: <code>from</code>, <code>to</code>, <code>subject</code>, <code>message</code>, <code>contact_email</code>, <code>type</code></small></p>
-                <form method="POST" action="/admin/settings/email-setup">
-                  <button type="submit" disabled={!hasConfig}>
-                    {status === 'not_started' ? 'Send Setup Payload' : 'Resend Setup Payload'}
+              <div class={`step ${status !== 'not_started' ? 'done' : ''}`}>
+                <div class="step-header">
+                  <h5 class="mb-0">Send Setup Payload</h5>
+                  {status !== 'not_started' && <span class="badge badge-closed">done</span>}
+                </div>
+                <p>Sends a sample webhook with all fields so you can map them in GoHighLevel.</p>
+                <p><small>Fields: <code>from</code> <code>from_name</code> <code>to</code> <code>subject</code> <code>message</code> <code>contact_email</code> <code>type</code></small></p>
+                <form method="POST" action="/admin/settings/email-setup" style="margin:0;">
+                  <button type="submit" class="btn btn-primary btn-sm" disabled={!hasConfig}>
+                    {status === 'not_started' ? 'Send Setup Payload' : 'Resend'}
                   </button>
                 </form>
-                {!hasConfig && <small style="color: var(--pico-del-color);">Save your webhook URL and admin email above first.</small>}
+                {!hasConfig && <small style="color: var(--danger);">Save your webhook URL and admin email above first.</small>}
               </div>
 
-              {/* Step 2: Confirm mapping */}
-              <div style={`opacity: ${status === 'setup_sent' ? '1' : status === 'confirmed' ? '0.6' : '0.4'}; margin-bottom: 1.5rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 8px;`}>
-                <h5>Step 2: Confirm Mapping {status === 'confirmed' && <span class="badge badge-closed">done</span>}</h5>
-                <p>After mapping the fields in GoHighLevel (or your email provider), confirm the integration is ready.</p>
-                <form method="POST" action="/admin/settings/email-confirm">
-                  <button type="submit" class="outline" disabled={status === 'not_started'}>
+              <div class={`step ${status === 'confirmed' ? 'done' : status === 'not_started' ? 'locked' : ''}`}>
+                <div class="step-header">
+                  <h5 class="mb-0">Confirm Mapping</h5>
+                  {status === 'confirmed' && <span class="badge badge-closed">done</span>}
+                </div>
+                <p>After mapping the fields in your email provider, confirm the integration is ready.</p>
+                <form method="POST" action="/admin/settings/email-confirm" style="margin:0;">
+                  <button type="submit" class="btn btn-outline btn-sm" disabled={status === 'not_started'}>
                     Confirm Mapping Complete
                   </button>
                 </form>
               </div>
 
-              {/* Step 3: Test individual emails */}
-              <div style={`opacity: ${status === 'confirmed' ? '1' : '0.4'}; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 8px;`}>
-                <h5>Step 3: Test Each Email Type</h5>
-                <p>Send a test for each notification type. All tests go to <strong>{settings.admin_email || '(no admin email set)'}</strong>.</p>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                  <form method="POST" action="/admin/settings/test-email">
+              <div class={`step ${status !== 'confirmed' ? 'locked' : ''}`}>
+                <div class="step-header">
+                  <h5 class="mb-0">Test Each Email Type</h5>
+                </div>
+                <p>All tests go to <strong>{settings.admin_email || '(not set)'}</strong>.</p>
+                <div class="grid-2">
+                  <form method="POST" action="/admin/settings/test-email" style="margin:0;">
                     <input type="hidden" name="type" value="new_ticket" />
-                    <button type="submit" class="outline" style="width:100%" disabled={status !== 'confirmed'}>Test: New Ticket</button>
-                    <small>Client submits a ticket → admin notified</small>
+                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%" disabled={status !== 'confirmed'}>Test: New Ticket</button>
+                    <small>Client submits ticket</small>
                   </form>
-                  <form method="POST" action="/admin/settings/test-email">
+                  <form method="POST" action="/admin/settings/test-email" style="margin:0;">
                     <input type="hidden" name="type" value="client_comment" />
-                    <button type="submit" class="outline" style="width:100%" disabled={status !== 'confirmed'}>Test: Client Comment</button>
-                    <small>Client comments → admin notified</small>
+                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%" disabled={status !== 'confirmed'}>Test: Client Comment</button>
+                    <small>Client comments</small>
                   </form>
-                  <form method="POST" action="/admin/settings/test-email">
+                  <form method="POST" action="/admin/settings/test-email" style="margin:0;">
                     <input type="hidden" name="type" value="status_update" />
-                    <button type="submit" class="outline" style="width:100%" disabled={status !== 'confirmed'}>Test: Status Update</button>
-                    <small>Admin changes status → client notified</small>
+                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%" disabled={status !== 'confirmed'}>Test: Status Update</button>
+                    <small>Admin changes status</small>
                   </form>
-                  <form method="POST" action="/admin/settings/test-email">
+                  <form method="POST" action="/admin/settings/test-email" style="margin:0;">
                     <input type="hidden" name="type" value="admin_reply" />
-                    <button type="submit" class="outline" style="width:100%" disabled={status !== 'confirmed'}>Test: Admin Reply</button>
-                    <small>Admin replies → client notified</small>
+                    <button type="submit" class="btn btn-outline btn-sm" style="width:100%" disabled={status !== 'confirmed'}>Test: Admin Reply</button>
+                    <small>Admin replies</small>
                   </form>
                 </div>
               </div>
             </>
           );
         })()}
-      </article>
+      </div>
 
-      <article>
-        <h4>Change Password</h4>
+      <div class="card">
+        <div class="card-header"><h4>Change Password</h4></div>
         <form method="POST" action="/admin/settings/password">
           <label>
             Current Password
@@ -534,9 +537,9 @@ app.get('/settings', async (c) => {
             Confirm New Password
             <input type="password" name="confirm_password" required minlength={6} />
           </label>
-          <button type="submit">Change Password</button>
+          <button type="submit" class="btn btn-primary">Change Password</button>
         </form>
-      </article>
+      </div>
     </Layout>
   );
 });

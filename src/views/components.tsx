@@ -10,40 +10,25 @@ export const PriorityBadge: FC<{ priority: string }> = ({ priority }) => {
   return <span class={`badge badge-${priority}`}>{priority}</span>;
 };
 
-export const TicketRow: FC<{ ticket: Ticket; basePath: string }> = ({
-  ticket,
-  basePath,
-}) => {
-  return (
-    <tr>
-      <td>
-        <a href={`${basePath}/${ticket.id}`}>{ticket.subject}</a>
-      </td>
-      <td>
-        <StatusBadge status={ticket.status} />
-      </td>
-      <td>
-        <PriorityBadge priority={ticket.priority} />
-      </td>
-      <td>{ticket.submitted_by}</td>
-      <td>{new Date(ticket.created_at + 'Z').toLocaleDateString()}</td>
-    </tr>
-  );
-};
-
-export const TicketTable: FC<{ tickets: Ticket[]; basePath: string }> = ({
+export const TicketTable: FC<{ tickets: Ticket[]; basePath: string; showOrg?: boolean }> = ({
   tickets,
   basePath,
+  showOrg,
 }) => {
   if (tickets.length === 0) {
-    return <p>No tickets yet.</p>;
+    return (
+      <div class="card" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+        <p class="mb-0">No tickets yet.</p>
+      </div>
+    );
   }
   return (
-    <figure>
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th>Subject</th>
+            {showOrg && <th>Organization</th>}
             <th>Status</th>
             <th>Priority</th>
             <th>Submitted by</th>
@@ -52,11 +37,18 @@ export const TicketTable: FC<{ tickets: Ticket[]; basePath: string }> = ({
         </thead>
         <tbody>
           {tickets.map((t) => (
-            <TicketRow ticket={t} basePath={basePath} />
+            <tr>
+              <td><a href={`${basePath}/${t.id}`}>{t.subject}</a></td>
+              {showOrg && <td>{t.org_name}</td>}
+              <td><StatusBadge status={t.status} /></td>
+              <td><PriorityBadge priority={t.priority} /></td>
+              <td>{t.submitted_by}</td>
+              <td style="white-space:nowrap">{new Date(t.created_at + 'Z').toLocaleDateString()}</td>
+            </tr>
           ))}
         </tbody>
       </table>
-    </figure>
+    </div>
   );
 };
 
@@ -74,8 +66,8 @@ export const StatCard: FC<{ label: string; value: number }> = ({
 }) => {
   return (
     <div class="stat-card">
-      <h2>{value}</h2>
-      <p>{label}</p>
+      <div class="stat-value">{value}</div>
+      <div class="stat-label">{label}</div>
     </div>
   );
 };

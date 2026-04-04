@@ -24,18 +24,29 @@ const app = new Hono<Env>();
 
 app.use('*', clientAuth);
 
-const clientNav = (email: string) => (
+const clientNav = (email: string, active: string) => (
   <>
-    <li><a href="/dashboard">Dashboard</a></li>
-    <li><a href="/dashboard/tickets">Tickets</a></li>
-    <li><a href="/dashboard/tickets/new">New Request</a></li>
-    <li>
-      <form method="POST" action="/auth/logout" style="margin:0">
-        <button type="submit" class="outline secondary" style="padding: 0.25rem 0.75rem; margin: 0;">
-          Logout
-        </button>
+    <div class="nav-section">
+      <div class="nav-section-label">Menu</div>
+      <a href="/dashboard" class={`nav-link ${active === 'dashboard' ? 'active' : ''}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a href="/dashboard/tickets" class={`nav-link ${active === 'tickets' ? 'active' : ''}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        Tickets
+      </a>
+      <a href="/dashboard/tickets/new" class={`nav-link ${active === 'new' ? 'active' : ''}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        New Request
+      </a>
+    </div>
+    <div class="nav-footer">
+      <small style="display:block; margin-bottom:0.4rem; color:var(--text-muted); padding:0 0.25rem;">{email}</small>
+      <form method="POST" action="/auth/logout">
+        <button type="submit">Sign out</button>
       </form>
-    </li>
+    </div>
   </>
 );
 
@@ -47,9 +58,11 @@ app.get('/', async (c) => {
   const settings = await getAllSettings(c.env.DB);
 
   return c.html(
-    <Layout title="Dashboard" nav={clientNav(session.email!)}>
-      <h2>Welcome, {session.orgName}</h2>
-      <p>Logged in as {session.email}</p>
+    <Layout title="Dashboard" nav={clientNav(session.email!, 'dashboard')}>
+      <div class="page-header">
+        <h2>Welcome back, {session.orgName}</h2>
+        <p>Here's an overview of your requests.</p>
+      </div>
 
       <div class="stats">
         <StatCard label="Open" value={counts.open} />
@@ -58,25 +71,27 @@ app.get('/', async (c) => {
         <StatCard label="Closed" value={counts.closed} />
       </div>
 
-      <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
-        <a href="/dashboard/tickets/new" role="button">Submit a Request</a>
-        <a href="/dashboard/tickets" role="button" class="outline">View All Tickets</a>
+      <div class="page-actions" style="margin-bottom: 1.5rem;">
+        <a href="/dashboard/tickets/new" class="btn btn-primary">Submit a Request</a>
+        <a href="/dashboard/tickets" class="btn btn-outline">View All Tickets</a>
       </div>
 
-      <article>
-        {(org?.about || settings.company_about) && (
-          <>
-            <h4>About {settings.company_name || 'Your Service Provider'}</h4>
-            <p>{org?.about || settings.company_about}</p>
-          </>
-        )}
-        {settings.communication_guide && (
-          <>
-            <h5>How to Reach Us</h5>
-            <p>{settings.communication_guide}</p>
-          </>
-        )}
-      </article>
+      {(org?.about || settings.company_about || settings.communication_guide) && (
+        <div class="card">
+          {(org?.about || settings.company_about) && (
+            <div class="card-header">
+              <h4>About {settings.company_name || 'Your Service Provider'}</h4>
+              <p>{org?.about || settings.company_about}</p>
+            </div>
+          )}
+          {settings.communication_guide && (
+            <>
+              <h5>How to Reach Us</h5>
+              <p class="mb-0">{settings.communication_guide}</p>
+            </>
+          )}
+        </div>
+      )}
     </Layout>
   );
 });
@@ -88,12 +103,14 @@ app.get('/tickets', async (c) => {
   const tickets = await getTicketsByOrg(c.env.DB, session.orgId!);
 
   return c.html(
-    <Layout title="Your Tickets" nav={clientNav(session.email!)}>
-      <h2>Your Tickets</h2>
+    <Layout title="Your Tickets" nav={clientNav(session.email!, 'tickets')}>
+      <div class="page-header">
+        <h2>Your Tickets</h2>
+        <div class="page-actions">
+          <a href="/dashboard/tickets/new" class="btn btn-primary">New Request</a>
+        </div>
+      </div>
       <Flash message={msg === 'created' ? 'Ticket submitted successfully!' : undefined} />
-      <a href="/dashboard/tickets/new" role="button" style="margin-bottom: 1rem; display: inline-block;">
-        New Request
-      </a>
       <TicketTable tickets={tickets} basePath="/dashboard/tickets" />
     </Layout>
   );
@@ -103,27 +120,33 @@ app.get('/tickets', async (c) => {
 app.get('/tickets/new', async (c) => {
   const session = c.get('session');
   return c.html(
-    <Layout title="New Request" nav={clientNav(session.email!)}>
-      <h2>Submit a Request</h2>
-      <form method="POST" action="/dashboard/tickets">
-        <label>
-          Subject
-          <input type="text" name="subject" required placeholder="Brief description of your request" />
-        </label>
-        <label>
-          Description
-          <textarea name="description" required rows={6} placeholder="Provide details about what you need..."></textarea>
-        </label>
-        <label>
-          Priority
-          <select name="priority">
-            <option value="low">Low</option>
-            <option value="normal" selected>Normal</option>
-            <option value="high">High</option>
-          </select>
-        </label>
-        <button type="submit">Submit Request</button>
-      </form>
+    <Layout title="New Request" nav={clientNav(session.email!, 'new')}>
+      <a href="/dashboard/tickets" class="back-link">&larr; Back to tickets</a>
+      <div class="card">
+        <div class="card-header">
+          <h3>Submit a Request</h3>
+          <p>Describe what you need and we'll get back to you.</p>
+        </div>
+        <form method="POST" action="/dashboard/tickets">
+          <label>
+            Subject
+            <input type="text" name="subject" required placeholder="Brief description of your request" />
+          </label>
+          <label>
+            Description
+            <textarea name="description" required rows={6} placeholder="Provide details about what you need..."></textarea>
+          </label>
+          <label>
+            Priority
+            <select name="priority">
+              <option value="low">Low</option>
+              <option value="normal" selected>Normal</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <button type="submit" class="btn btn-primary">Submit Request</button>
+        </form>
+      </div>
     </Layout>
   );
 });
@@ -149,7 +172,6 @@ app.post('/tickets', async (c) => {
     session.email!
   );
 
-  // Notify admin of new ticket
   c.executionCtx.waitUntil(
     (async () => {
       const adminEmail = await getAdminEmail(c.env.DB);
@@ -183,43 +205,49 @@ app.get('/tickets/:id', async (c) => {
   const msg = c.req.query('msg');
 
   return c.html(
-    <Layout title={ticket.subject} nav={clientNav(session.email!)}>
-      <a href="/dashboard/tickets">&larr; Back to tickets</a>
-      <h2>{ticket.subject}</h2>
+    <Layout title={ticket.subject} nav={clientNav(session.email!, 'tickets')}>
+      <a href="/dashboard/tickets" class="back-link">&larr; Back to tickets</a>
       <Flash message={msg === 'commented' ? 'Comment added.' : undefined} />
 
-      <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-        <StatusBadge status={ticket.status} />
-        <PriorityBadge priority={ticket.priority} />
-        <small style="color: var(--pico-muted-color)">
-          Submitted by {ticket.submitted_by} on{' '}
-          {new Date(ticket.created_at + 'Z').toLocaleDateString()}
-        </small>
+      <div class="card" style="margin-bottom: 1rem;">
+        <div style="display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <h3 class="mb-0">{ticket.subject}</h3>
+            <small>
+              Submitted by {ticket.submitted_by} on{' '}
+              {new Date(ticket.created_at + 'Z').toLocaleDateString()}
+            </small>
+          </div>
+          <div class="flex-row gap-sm">
+            <StatusBadge status={ticket.status} />
+            <PriorityBadge priority={ticket.priority} />
+          </div>
+        </div>
+        <hr />
+        <p class="mb-0" style="color: var(--text);">{ticket.description}</p>
       </div>
-
-      <article>
-        <p>{ticket.description}</p>
-      </article>
 
       <h4>Comments</h4>
       {comments.length === 0 && <p>No comments yet.</p>}
       {comments.map((comment) => (
         <div class={`comment ${comment.author === 'admin' ? 'comment-admin' : ''}`}>
           <div class="comment-meta">
-            <strong>{comment.author === 'admin' ? 'Service Provider' : comment.author}</strong>{' '}
-            — {new Date(comment.created_at + 'Z').toLocaleString()}
+            <strong>{comment.author === 'admin' ? 'Service Provider' : comment.author}</strong>
+            <span>{new Date(comment.created_at + 'Z').toLocaleString()}</span>
           </div>
-          <p style="margin:0">{comment.body}</p>
+          <p>{comment.body}</p>
         </div>
       ))}
 
-      <form method="POST" action={`/dashboard/tickets/${id}/comments`} style="margin-top: 1rem;">
-        <label>
-          Add a comment
-          <textarea name="body" required rows={3} placeholder="Type your message..."></textarea>
-        </label>
-        <button type="submit">Post Comment</button>
-      </form>
+      <div class="card mt-1">
+        <form method="POST" action={`/dashboard/tickets/${id}/comments`}>
+          <label>
+            Add a comment
+            <textarea name="body" required rows={3} placeholder="Type your message..."></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary">Post Comment</button>
+        </form>
+      </div>
     </Layout>
   );
 });
@@ -240,7 +268,6 @@ app.post('/tickets/:id/comments', async (c) => {
 
   await createComment(c.env.DB, id, session.email!, text);
 
-  // Notify admin of client comment
   c.executionCtx.waitUntil(
     (async () => {
       const adminEmail = await getAdminEmail(c.env.DB);
