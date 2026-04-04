@@ -336,6 +336,7 @@ app.post('/tickets/:id', async (c) => {
         subject: `Ticket update: ${ticket.subject}`,
         message: `Your ticket "${ticket.subject}" status has been updated from ${ticket.status.replace('_', ' ')} to ${status.replace('_', ' ')}.`,
         contact_email: ticket.submitted_by,
+        type: 'status_update',
       })
     );
   }
@@ -362,6 +363,7 @@ app.post('/tickets/:id/comments', async (c) => {
         subject: `Reply on: ${ticket.subject}`,
         message: `Your service provider replied to "${ticket.subject}":\n\n${text}`,
         contact_email: ticket.submitted_by,
+        type: 'admin_reply',
       })
     );
   }
@@ -382,6 +384,8 @@ app.get('/settings', async (c) => {
         message={
           msg === 'saved' ? 'Settings saved.' :
           msg === 'password_changed' ? 'Password changed successfully.' :
+          msg === 'setup_sent' ? 'Setup payload sent to your webhook! Map the fields in GHL, then click Confirm.' :
+          msg === 'confirmed' ? 'Email integration confirmed and ready!' :
           msg === 'test_sent' ? 'Test email sent! Check your inbox.' :
           msg === 'test_failed' ? undefined :
           msg === 'password_wrong' ? undefined :
@@ -391,7 +395,8 @@ app.get('/settings', async (c) => {
       <Flash
         message={
           msg === 'password_wrong' ? 'Current password is incorrect.' :
-          msg === 'test_failed' ? 'Failed to send test email. Check your webhook URL and admin email.' :
+          msg === 'test_failed' ? 'Failed to send. Check your webhook URL and admin email.' :
+          msg === 'setup_missing' ? 'Save your webhook URL and admin email first.' :
           undefined
         }
         type="error"
@@ -437,30 +442,73 @@ app.get('/settings', async (c) => {
       </article>
 
       <article>
-        <h4>Test Email Notifications</h4>
-        <p>Send a test for each email type to verify your webhook is working. Emails go to <strong>{settings.admin_email || '(no admin email set)'}</strong>.</p>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-          <form method="POST" action="/admin/settings/test-email">
-            <input type="hidden" name="type" value="new_ticket" />
-            <button type="submit" class="outline" style="width:100%">Test: New Ticket</button>
-            <small>Sent to admin when a client submits a ticket</small>
-          </form>
-          <form method="POST" action="/admin/settings/test-email">
-            <input type="hidden" name="type" value="client_comment" />
-            <button type="submit" class="outline" style="width:100%">Test: Client Comment</button>
-            <small>Sent to admin when a client comments</small>
-          </form>
-          <form method="POST" action="/admin/settings/test-email">
-            <input type="hidden" name="type" value="status_update" />
-            <button type="submit" class="outline" style="width:100%">Test: Status Update</button>
-            <small>Sent to client when admin changes ticket status</small>
-          </form>
-          <form method="POST" action="/admin/settings/test-email">
-            <input type="hidden" name="type" value="admin_reply" />
-            <button type="submit" class="outline" style="width:100%">Test: Admin Reply</button>
-            <small>Sent to client when admin replies to a ticket</small>
-          </form>
-        </div>
+        <h4>Email Integration Setup</h4>
+        {(() => {
+          const status = settings.email_setup_status || 'not_started';
+          const hasConfig = settings.webhook_url && settings.admin_email;
+
+          return (
+            <>
+              <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
+                <span class={`badge ${status !== 'not_started' ? 'badge-closed' : 'badge-open'}`}>Step 1</span>
+                <span class={`badge ${status === 'confirmed' ? 'badge-closed' : 'badge-open'}`}>Step 2</span>
+                <span class={`badge ${status === 'confirmed' ? 'badge-closed' : 'badge-waiting'}`}>Step 3</span>
+              </div>
+
+              {/* Step 1: Send setup payload */}
+              <div style={`opacity: ${status === 'not_started' ? '1' : '0.6'}; margin-bottom: 1.5rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 8px;`}>
+                <h5>Step 1: Send Setup Payload {status !== 'not_started' && <span class="badge badge-closed">done</span>}</h5>
+                <p>This sends a sample webhook with all fields to your endpoint so you can map them in GoHighLevel.</p>
+                <p><small>Fields sent: <code>from</code>, <code>to</code>, <code>subject</code>, <code>message</code>, <code>contact_email</code>, <code>type</code></small></p>
+                <form method="POST" action="/admin/settings/email-setup">
+                  <button type="submit" disabled={!hasConfig}>
+                    {status === 'not_started' ? 'Send Setup Payload' : 'Resend Setup Payload'}
+                  </button>
+                </form>
+                {!hasConfig && <small style="color: var(--pico-del-color);">Save your webhook URL and admin email above first.</small>}
+              </div>
+
+              {/* Step 2: Confirm mapping */}
+              <div style={`opacity: ${status === 'setup_sent' ? '1' : status === 'confirmed' ? '0.6' : '0.4'}; margin-bottom: 1.5rem; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 8px;`}>
+                <h5>Step 2: Confirm Mapping {status === 'confirmed' && <span class="badge badge-closed">done</span>}</h5>
+                <p>After mapping the fields in GoHighLevel (or your email provider), confirm the integration is ready.</p>
+                <form method="POST" action="/admin/settings/email-confirm">
+                  <button type="submit" class="outline" disabled={status === 'not_started'}>
+                    Confirm Mapping Complete
+                  </button>
+                </form>
+              </div>
+
+              {/* Step 3: Test individual emails */}
+              <div style={`opacity: ${status === 'confirmed' ? '1' : '0.4'}; padding: 1rem; border: 1px solid var(--pico-muted-border-color); border-radius: 8px;`}>
+                <h5>Step 3: Test Each Email Type</h5>
+                <p>Send a test for each notification type. All tests go to <strong>{settings.admin_email || '(no admin email set)'}</strong>.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                  <form method="POST" action="/admin/settings/test-email">
+                    <input type="hidden" name="type" value="new_ticket" />
+                    <button type="submit" class="outline" style="width:100%" disabled={status !== 'confirmed'}>Test: New Ticket</button>
+                    <small>Client submits a ticket → admin notified</small>
+                  </form>
+                  <form method="POST" action="/admin/settings/test-email">
+                    <input type="hidden" name="type" value="client_comment" />
+                    <button type="submit" class="outline" style="width:100%" disabled={status !== 'confirmed'}>Test: Client Comment</button>
+                    <small>Client comments → admin notified</small>
+                  </form>
+                  <form method="POST" action="/admin/settings/test-email">
+                    <input type="hidden" name="type" value="status_update" />
+                    <button type="submit" class="outline" style="width:100%" disabled={status !== 'confirmed'}>Test: Status Update</button>
+                    <small>Admin changes status → client notified</small>
+                  </form>
+                  <form method="POST" action="/admin/settings/test-email">
+                    <input type="hidden" name="type" value="admin_reply" />
+                    <button type="submit" class="outline" style="width:100%" disabled={status !== 'confirmed'}>Test: Admin Reply</button>
+                    <small>Admin replies → client notified</small>
+                  </form>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </article>
 
       <article>
@@ -485,41 +533,82 @@ app.get('/settings', async (c) => {
   );
 });
 
-// Test email
+// Step 1: Send setup payload with all fields for mapping
+app.post('/settings/email-setup', async (c) => {
+  const settings = await getAllSettings(c.env.DB);
+  if (!settings.webhook_url || !settings.admin_email) {
+    return c.redirect('/admin/settings?msg=setup_missing');
+  }
+
+  try {
+    const webhookUrl = settings.webhook_url;
+    const fromEmail = settings.from_email || 'noreply@hlservicemanager.com';
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: settings.admin_email,
+        subject: 'HL Service Manager — Setup Payload (map these fields)',
+        message: 'This is a setup payload from HL Service Manager. Map each field in your email automation:\n\n• from — sender address\n• to — recipient address\n• subject — email subject line\n• message — email body\n• contact_email — the person this email is about\n• type — notification type (new_ticket, client_comment, status_update, admin_reply)',
+        contact_email: settings.admin_email,
+        type: 'setup',
+      }),
+    });
+
+    await setSetting(c.env.DB, 'email_setup_status', 'setup_sent');
+    return c.redirect('/admin/settings?msg=setup_sent');
+  } catch {
+    return c.redirect('/admin/settings?msg=test_failed');
+  }
+});
+
+// Step 2: Confirm mapping is done
+app.post('/settings/email-confirm', async (c) => {
+  await setSetting(c.env.DB, 'email_setup_status', 'confirmed');
+  return c.redirect('/admin/settings?msg=confirmed');
+});
+
+// Step 3: Test individual email types
 app.post('/settings/test-email', async (c) => {
   const body = await c.req.parseBody();
   const type = body.type as string;
   const settings = await getAllSettings(c.env.DB);
   const adminEmail = settings.admin_email;
 
-  if (!adminEmail || !settings.webhook_url) {
+  if (!adminEmail || !settings.webhook_url || settings.email_setup_status !== 'confirmed') {
     return c.redirect('/admin/settings?msg=test_failed');
   }
 
-  const tests: Record<string, { to: string; subject: string; message: string; contact_email: string }> = {
+  const tests: Record<string, { to: string; subject: string; message: string; contact_email: string; type: 'new_ticket' | 'client_comment' | 'status_update' | 'admin_reply' }> = {
     new_ticket: {
       to: adminEmail,
       subject: 'TEST: New ticket — Workflow automation request',
       message: 'New high priority ticket from jane@demoagency.com (Demo Agency):\n\nWorkflow automation request\n\nThis is a test email simulating a new ticket submission from a client.',
       contact_email: 'jane@demoagency.com',
+      type: 'new_ticket',
     },
     client_comment: {
       to: adminEmail,
       subject: 'TEST: New comment on — Workflow automation request',
       message: 'jane@demoagency.com commented on ticket "Workflow automation request":\n\nThis is a test email simulating a client adding a comment to a ticket.',
       contact_email: 'jane@demoagency.com',
+      type: 'client_comment',
     },
     status_update: {
       to: adminEmail,
       subject: 'TEST: Ticket update — Workflow automation request',
       message: 'Your ticket "Workflow automation request" status has been updated from open to in progress.\n\nThis is a test email simulating a status change notification sent to a client.',
       contact_email: 'jane@demoagency.com',
+      type: 'status_update',
     },
     admin_reply: {
       to: adminEmail,
       subject: 'TEST: Reply on — Workflow automation request',
       message: 'Your service provider replied to "Workflow automation request":\n\nThis is a test email simulating an admin reply notification sent to a client.',
       contact_email: 'jane@demoagency.com',
+      type: 'admin_reply',
     },
   };
 

@@ -1,5 +1,7 @@
 import { getAllSettings } from '../db/queries';
 
+export type EmailType = 'new_ticket' | 'client_comment' | 'status_update' | 'admin_reply';
+
 export async function sendEmail(
   db: D1Database,
   params: {
@@ -7,6 +9,7 @@ export async function sendEmail(
     subject: string;
     message: string;
     contact_email: string;
+    type?: EmailType;
   }
 ): Promise<void> {
   const settings = await getAllSettings(db);
@@ -24,6 +27,7 @@ export async function sendEmail(
       subject: params.subject,
       message: params.message,
       contact_email: params.contact_email,
+      type: params.type || 'notification',
     }),
   });
 }

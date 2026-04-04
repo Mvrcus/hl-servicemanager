@@ -159,6 +159,7 @@ app.post('/tickets', async (c) => {
           subject: `New ticket: ${subject}`,
           message: `New ${priority} priority ticket from ${session.email} (${session.orgName}):\n\n${subject}\n\n${description}`,
           contact_email: session.email!,
+          type: 'new_ticket',
         });
       }
     })()
@@ -248,6 +249,7 @@ app.post('/tickets/:id/comments', async (c) => {
           subject: `New comment on: ${ticket.subject}`,
           message: `${session.email} commented on ticket "${ticket.subject}":\n\n${text}`,
           contact_email: session.email!,
+          type: 'client_comment',
         });
       }
     })()
