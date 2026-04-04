@@ -12,7 +12,8 @@ import {
   getTicketCounts,
   getOrgById,
 } from '../db/queries';
-import { sendEmail } from '../lib/email';
+import { sendEmail, getAdminEmail } from '../lib/email';
+import { getAllSettings } from '../db/queries';
 
 type Env = {
   Bindings: Bindings;
@@ -43,6 +44,7 @@ app.get('/', async (c) => {
   const session = c.get('session');
   const counts = await getTicketCounts(c.env.DB, session.orgId);
   const org = await getOrgById(c.env.DB, session.orgId!);
+  const settings = await getAllSettings(c.env.DB);
 
   return c.html(
     <Layout title="Dashboard" nav={clientNav(session.email!)}>
@@ -61,18 +63,20 @@ app.get('/', async (c) => {
         <a href="/dashboard/tickets" role="button" class="outline">View All Tickets</a>
       </div>
 
-      {org?.about && (
-        <article>
-          <h4>About Your Service Provider</h4>
-          <p>{org.about}</p>
-          <h5>How to Reach Us</h5>
-          <p>
-            The best way to communicate is through this portal. Submit a ticket
-            for any requests, questions, or issues. We typically respond within
-            24 hours on business days.
-          </p>
-        </article>
-      )}
+      <article>
+        {(org?.about || settings.company_about) && (
+          <>
+            <h4>About {settings.company_name || 'Your Service Provider'}</h4>
+            <p>{org?.about || settings.company_about}</p>
+          </>
+        )}
+        {settings.communication_guide && (
+          <>
+            <h5>How to Reach Us</h5>
+            <p>{settings.communication_guide}</p>
+          </>
+        )}
+      </article>
     </Layout>
   );
 });
@@ -147,11 +151,16 @@ app.post('/tickets', async (c) => {
 
   // Notify admin of new ticket
   c.executionCtx.waitUntil(
-    sendEmail({
-      to: 'marcuswilson.22@gmail.com',
-      subject: `New ticket: ${subject}`,
-      message: `New ${priority} priority ticket from ${session.email} (${session.orgName}):\n\n${subject}\n\n${description}`,
-    })
+    (async () => {
+      const adminEmail = await getAdminEmail(c.env.DB);
+      if (adminEmail) {
+        await sendEmail(c.env.DB, {
+          to: adminEmail,
+          subject: `New ticket: ${subject}`,
+          message: `New ${priority} priority ticket from ${session.email} (${session.orgName}):\n\n${subject}\n\n${description}`,
+        });
+      }
+    })()
   );
 
   return c.redirect('/dashboard/tickets?msg=created');
@@ -230,11 +239,16 @@ app.post('/tickets/:id/comments', async (c) => {
 
   // Notify admin of client comment
   c.executionCtx.waitUntil(
-    sendEmail({
-      to: 'marcuswilson.22@gmail.com',
-      subject: `New comment on: ${ticket.subject}`,
-      message: `${session.email} commented on ticket "${ticket.subject}":\n\n${text}`,
-    })
+    (async () => {
+      const adminEmail = await getAdminEmail(c.env.DB);
+      if (adminEmail) {
+        await sendEmail(c.env.DB, {
+          to: adminEmail,
+          subject: `New comment on: ${ticket.subject}`,
+          message: `${session.email} commented on ticket "${ticket.subject}":\n\n${text}`,
+        });
+      }
+    })()
   );
 
   return c.redirect(`/dashboard/tickets/${id}?msg=commented`);

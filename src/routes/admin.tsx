@@ -14,8 +14,13 @@ import {
   getCommentsByTicket,
   createComment,
   getTicketCounts,
+  getAllSettings,
+  setSetting,
+  getAdminByUsername,
+  updateAdminPassword,
 } from '../db/queries';
 import { sendEmail } from '../lib/email';
+import { hashPassword, verifyPassword } from '../lib/password';
 
 type Env = {
   Bindings: Bindings;
@@ -32,6 +37,7 @@ const adminNav = (
     <li><a href="/admin">Dashboard</a></li>
     <li><a href="/admin/orgs">Organizations</a></li>
     <li><a href="/admin/tickets">All Tickets</a></li>
+    <li><a href="/admin/settings">Settings</a></li>
     <li>
       <form method="POST" action="/auth/logout" style="margin:0">
         <button type="submit" class="outline secondary" style="padding: 0.25rem 0.75rem; margin: 0;">
@@ -325,7 +331,7 @@ app.post('/tickets/:id', async (c) => {
   // Notify client of status change
   if (ticket && ticket.status !== status) {
     c.executionCtx.waitUntil(
-      sendEmail({
+      sendEmail(c.env.DB, {
         to: ticket.submitted_by,
         subject: `Ticket update: ${ticket.subject}`,
         message: `Your ticket "${ticket.subject}" status has been updated from ${ticket.status.replace('_', ' ')} to ${status.replace('_', ' ')}.`,
@@ -350,7 +356,7 @@ app.post('/tickets/:id/comments', async (c) => {
   // Notify client of admin reply
   if (ticket) {
     c.executionCtx.waitUntil(
-      sendEmail({
+      sendEmail(c.env.DB, {
         to: ticket.submitted_by,
         subject: `Reply on: ${ticket.subject}`,
         message: `Your service provider replied to "${ticket.subject}":\n\n${text}`,
@@ -359,6 +365,124 @@ app.post('/tickets/:id/comments', async (c) => {
   }
 
   return c.redirect(`/admin/tickets/${id}?msg=commented`);
+});
+
+// ---- Settings ----
+
+app.get('/settings', async (c) => {
+  const settings = await getAllSettings(c.env.DB);
+  const msg = c.req.query('msg');
+
+  return c.html(
+    <Layout title="Settings" nav={adminNav}>
+      <h2>Settings</h2>
+      <Flash
+        message={
+          msg === 'saved' ? 'Settings saved.' :
+          msg === 'password_changed' ? 'Password changed successfully.' :
+          msg === 'password_wrong' ? undefined :
+          undefined
+        }
+      />
+      <Flash
+        message={msg === 'password_wrong' ? 'Current password is incorrect.' : undefined}
+        type="error"
+      />
+
+      <article>
+        <h4>Company Profile</h4>
+        <form method="POST" action="/admin/settings">
+          <label>
+            Company Name
+            <input type="text" name="company_name" value={settings.company_name || ''} placeholder="Your Company Name" />
+          </label>
+          <label>
+            About Your Company
+            <textarea name="company_about" rows={3} placeholder="Brief description shown to clients...">{settings.company_about || ''}</textarea>
+          </label>
+          <label>
+            Communication Guide
+            <textarea name="communication_guide" rows={3} placeholder="How clients should reach you...">{settings.communication_guide || ''}</textarea>
+          </label>
+
+          <h4>Email Notifications</h4>
+          <label>
+            Admin Email
+            <input type="email" name="admin_email" value={settings.admin_email || ''} placeholder="you@example.com" />
+            <small>Where ticket notifications are sent</small>
+          </label>
+          <label>
+            From Email
+            <input type="email" name="from_email" value={settings.from_email || ''} placeholder="noreply@yourdomain.com" />
+            <small>Sender address for outgoing emails</small>
+          </label>
+
+          <h4>Integrations</h4>
+          <label>
+            Email Webhook URL
+            <input type="url" name="webhook_url" value={settings.webhook_url || ''} placeholder="https://..." />
+            <small>GoHighLevel or other webhook endpoint for sending emails</small>
+          </label>
+
+          <button type="submit">Save Settings</button>
+        </form>
+      </article>
+
+      <article>
+        <h4>Change Password</h4>
+        <form method="POST" action="/admin/settings/password">
+          <label>
+            Current Password
+            <input type="password" name="current_password" required />
+          </label>
+          <label>
+            New Password
+            <input type="password" name="new_password" required minlength={6} />
+          </label>
+          <label>
+            Confirm New Password
+            <input type="password" name="confirm_password" required minlength={6} />
+          </label>
+          <button type="submit">Change Password</button>
+        </form>
+      </article>
+    </Layout>
+  );
+});
+
+// Save settings
+app.post('/settings', async (c) => {
+  const body = await c.req.parseBody();
+  const keys = ['company_name', 'company_about', 'communication_guide', 'admin_email', 'from_email', 'webhook_url'];
+
+  for (const key of keys) {
+    const value = (body[key] as string || '').trim();
+    await setSetting(c.env.DB, key, value);
+  }
+
+  return c.redirect('/admin/settings?msg=saved');
+});
+
+// Change password
+app.post('/settings/password', async (c) => {
+  const body = await c.req.parseBody();
+  const currentPassword = body.current_password as string || '';
+  const newPassword = body.new_password as string || '';
+  const confirmPassword = body.confirm_password as string || '';
+
+  if (newPassword !== confirmPassword || newPassword.length < 6) {
+    return c.redirect('/admin/settings?msg=password_wrong');
+  }
+
+  const admin = await getAdminByUsername(c.env.DB, 'admin');
+  if (!admin || !(await verifyPassword(currentPassword, admin.password_hash))) {
+    return c.redirect('/admin/settings?msg=password_wrong');
+  }
+
+  const hash = await hashPassword(newPassword);
+  await updateAdminPassword(c.env.DB, admin.id, hash);
+
+  return c.redirect('/admin/settings?msg=password_changed');
 });
 
 export default app;

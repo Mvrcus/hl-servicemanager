@@ -1,21 +1,32 @@
-const WEBHOOK_URL =
-  'https://services.leadconnectorhq.com/hooks/VqmNtMrPIgjbt8tTAZiz/webhook-trigger/ee481e9b-1c27-445e-8e9d-f34a0d305420';
+import { getAllSettings } from '../db/queries';
 
-const FROM_EMAIL = 'noreply@hlservicemanager.com';
+export async function sendEmail(
+  db: D1Database,
+  params: {
+    to: string;
+    subject: string;
+    message: string;
+  }
+): Promise<void> {
+  const settings = await getAllSettings(db);
+  const webhookUrl = settings.webhook_url;
+  const fromEmail = settings.from_email || 'noreply@hlservicemanager.com';
 
-export async function sendEmail(params: {
-  to: string;
-  subject: string;
-  message: string;
-}): Promise<void> {
-  await fetch(WEBHOOK_URL, {
+  if (!webhookUrl) return;
+
+  await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: FROM_EMAIL,
+      from: fromEmail,
       to: params.to,
       subject: params.subject,
       message: params.message,
     }),
   });
+}
+
+export async function getAdminEmail(db: D1Database): Promise<string> {
+  const settings = await getAllSettings(db);
+  return settings.admin_email || '';
 }

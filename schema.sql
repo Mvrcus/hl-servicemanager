@@ -31,3 +31,8 @@ CREATE TABLE IF NOT EXISTS admins (
   username      TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);

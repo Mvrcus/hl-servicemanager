@@ -176,3 +176,54 @@ export async function getAdminByUsername(
     .bind(username)
     .first();
 }
+
+export async function updateAdminPassword(
+  db: D1Database,
+  id: number,
+  passwordHash: string
+): Promise<void> {
+  await db
+    .prepare('UPDATE admins SET password_hash = ? WHERE id = ?')
+    .bind(passwordHash, id)
+    .run();
+}
+
+// ---- Settings ----
+
+export async function getSetting(
+  db: D1Database,
+  key: string
+): Promise<string | null> {
+  const row = await db
+    .prepare('SELECT value FROM settings WHERE key = ?')
+    .bind(key)
+    .first<{ value: string }>();
+  return row?.value ?? null;
+}
+
+export async function getAllSettings(
+  db: D1Database
+): Promise<Record<string, string>> {
+  const result = await db.prepare('SELECT key, value FROM settings').all<{
+    key: string;
+    value: string;
+  }>();
+  const settings: Record<string, string> = {};
+  for (const row of result.results) {
+    settings[row.key] = row.value;
+  }
+  return settings;
+}
+
+export async function setSetting(
+  db: D1Database,
+  key: string,
+  value: string
+): Promise<void> {
+  await db
+    .prepare(
+      'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+    )
+    .bind(key, value)
+    .run();
+}

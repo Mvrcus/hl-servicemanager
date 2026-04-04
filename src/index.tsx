@@ -23,6 +23,7 @@ app.get('/setup', async (c) => {
   await db.prepare("CREATE TABLE IF NOT EXISTS tickets (id INTEGER PRIMARY KEY AUTOINCREMENT, organization_id INTEGER NOT NULL REFERENCES organizations(id), subject TEXT NOT NULL, description TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', priority TEXT NOT NULL DEFAULT 'normal', submitted_by TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, ticket_id INTEGER NOT NULL REFERENCES tickets(id), author TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')))").run();
   await db.prepare("CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL)").run();
+  await db.prepare("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)").run();
 
   // Create default admin (admin/admin — change this!)
   const existing = await db
@@ -36,6 +37,19 @@ app.get('/setup', async (c) => {
       .prepare('INSERT INTO admins (username, password_hash) VALUES (?, ?)')
       .bind('admin', hash)
       .run();
+  }
+
+  // Seed default settings
+  const defaults: [string, string][] = [
+    ['company_name', 'HL Service Manager'],
+    ['admin_email', 'marcuswilson.22@gmail.com'],
+    ['from_email', 'noreply@hlservicemanager.com'],
+    ['webhook_url', 'https://services.leadconnectorhq.com/hooks/VqmNtMrPIgjbt8tTAZiz/webhook-trigger/ee481e9b-1c27-445e-8e9d-f34a0d305420'],
+    ['company_about', 'We help agencies and users build out their GoHighLevel setups — workflows, automations, custom solutions, and more.'],
+    ['communication_guide', 'The best way to communicate is through this portal. Submit a ticket for any requests, questions, or issues. We typically respond within 24 hours on business days.'],
+  ];
+  for (const [key, value] of defaults) {
+    await db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)").bind(key, value).run();
   }
 
   // Seed sample org
