@@ -380,12 +380,18 @@ app.get('/settings', async (c) => {
         message={
           msg === 'saved' ? 'Settings saved.' :
           msg === 'password_changed' ? 'Password changed successfully.' :
+          msg === 'test_sent' ? 'Test email sent! Check your inbox.' :
+          msg === 'test_failed' ? undefined :
           msg === 'password_wrong' ? undefined :
           undefined
         }
       />
       <Flash
-        message={msg === 'password_wrong' ? 'Current password is incorrect.' : undefined}
+        message={
+          msg === 'password_wrong' ? 'Current password is incorrect.' :
+          msg === 'test_failed' ? 'Failed to send test email. Check your webhook URL and admin email.' :
+          undefined
+        }
         type="error"
       />
 
@@ -429,6 +435,33 @@ app.get('/settings', async (c) => {
       </article>
 
       <article>
+        <h4>Test Email Notifications</h4>
+        <p>Send a test for each email type to verify your webhook is working. Emails go to <strong>{settings.admin_email || '(no admin email set)'}</strong>.</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <form method="POST" action="/admin/settings/test-email">
+            <input type="hidden" name="type" value="new_ticket" />
+            <button type="submit" class="outline" style="width:100%">Test: New Ticket</button>
+            <small>Sent to admin when a client submits a ticket</small>
+          </form>
+          <form method="POST" action="/admin/settings/test-email">
+            <input type="hidden" name="type" value="client_comment" />
+            <button type="submit" class="outline" style="width:100%">Test: Client Comment</button>
+            <small>Sent to admin when a client comments</small>
+          </form>
+          <form method="POST" action="/admin/settings/test-email">
+            <input type="hidden" name="type" value="status_update" />
+            <button type="submit" class="outline" style="width:100%">Test: Status Update</button>
+            <small>Sent to client when admin changes ticket status</small>
+          </form>
+          <form method="POST" action="/admin/settings/test-email">
+            <input type="hidden" name="type" value="admin_reply" />
+            <button type="submit" class="outline" style="width:100%">Test: Admin Reply</button>
+            <small>Sent to client when admin replies to a ticket</small>
+          </form>
+        </div>
+      </article>
+
+      <article>
         <h4>Change Password</h4>
         <form method="POST" action="/admin/settings/password">
           <label>
@@ -448,6 +481,51 @@ app.get('/settings', async (c) => {
       </article>
     </Layout>
   );
+});
+
+// Test email
+app.post('/settings/test-email', async (c) => {
+  const body = await c.req.parseBody();
+  const type = body.type as string;
+  const settings = await getAllSettings(c.env.DB);
+  const adminEmail = settings.admin_email;
+
+  if (!adminEmail || !settings.webhook_url) {
+    return c.redirect('/admin/settings?msg=test_failed');
+  }
+
+  const tests: Record<string, { to: string; subject: string; message: string }> = {
+    new_ticket: {
+      to: adminEmail,
+      subject: 'TEST: New ticket — Workflow automation request',
+      message: 'New high priority ticket from jane@demoagency.com (Demo Agency):\n\nWorkflow automation request\n\nThis is a test email simulating a new ticket submission from a client.',
+    },
+    client_comment: {
+      to: adminEmail,
+      subject: 'TEST: New comment on — Workflow automation request',
+      message: 'jane@demoagency.com commented on ticket "Workflow automation request":\n\nThis is a test email simulating a client adding a comment to a ticket.',
+    },
+    status_update: {
+      to: adminEmail,
+      subject: 'TEST: Ticket update — Workflow automation request',
+      message: 'Your ticket "Workflow automation request" status has been updated from open to in progress.\n\nThis is a test email simulating a status change notification sent to a client.',
+    },
+    admin_reply: {
+      to: adminEmail,
+      subject: 'TEST: Reply on — Workflow automation request',
+      message: 'Your service provider replied to "Workflow automation request":\n\nThis is a test email simulating an admin reply notification sent to a client.',
+    },
+  };
+
+  const test = tests[type];
+  if (!test) return c.redirect('/admin/settings?msg=test_failed');
+
+  try {
+    await sendEmail(c.env.DB, test);
+    return c.redirect('/admin/settings?msg=test_sent');
+  } catch {
+    return c.redirect('/admin/settings?msg=test_failed');
+  }
 });
 
 // Save settings
