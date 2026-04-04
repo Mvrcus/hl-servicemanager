@@ -15,6 +15,7 @@ import {
   createComment,
   getTicketCounts,
 } from '../db/queries';
+import { sendEmail } from '../lib/email';
 
 type Env = {
   Bindings: Bindings;
@@ -318,7 +319,20 @@ app.post('/tickets/:id', async (c) => {
   const status = body.status as string;
   const priority = body.priority as string;
 
+  const ticket = await getTicketById(c.env.DB, id);
   await updateTicket(c.env.DB, id, status, priority);
+
+  // Notify client of status change
+  if (ticket && ticket.status !== status) {
+    c.executionCtx.waitUntil(
+      sendEmail({
+        to: ticket.submitted_by,
+        subject: `Ticket update: ${ticket.subject}`,
+        message: `Your ticket "${ticket.subject}" status has been updated from ${ticket.status.replace('_', ' ')} to ${status.replace('_', ' ')}.`,
+      })
+    );
+  }
+
   return c.redirect(`/admin/tickets/${id}?msg=updated`);
 });
 
@@ -330,7 +344,20 @@ app.post('/tickets/:id/comments', async (c) => {
 
   if (!text) return c.redirect(`/admin/tickets/${id}`);
 
+  const ticket = await getTicketById(c.env.DB, id);
   await createComment(c.env.DB, id, 'admin', text);
+
+  // Notify client of admin reply
+  if (ticket) {
+    c.executionCtx.waitUntil(
+      sendEmail({
+        to: ticket.submitted_by,
+        subject: `Reply on: ${ticket.subject}`,
+        message: `Your service provider replied to "${ticket.subject}":\n\n${text}`,
+      })
+    );
+  }
+
   return c.redirect(`/admin/tickets/${id}?msg=commented`);
 });
 

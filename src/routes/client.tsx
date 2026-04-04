@@ -12,6 +12,7 @@ import {
   getTicketCounts,
   getOrgById,
 } from '../db/queries';
+import { sendEmail } from '../lib/email';
 
 type Env = {
   Bindings: Bindings;
@@ -144,6 +145,15 @@ app.post('/tickets', async (c) => {
     session.email!
   );
 
+  // Notify admin of new ticket
+  c.executionCtx.waitUntil(
+    sendEmail({
+      to: 'marcuswilson.22@gmail.com',
+      subject: `New ticket: ${subject}`,
+      message: `New ${priority} priority ticket from ${session.email} (${session.orgName}):\n\n${subject}\n\n${description}`,
+    })
+  );
+
   return c.redirect('/dashboard/tickets?msg=created');
 });
 
@@ -217,6 +227,16 @@ app.post('/tickets/:id/comments', async (c) => {
   }
 
   await createComment(c.env.DB, id, session.email!, text);
+
+  // Notify admin of client comment
+  c.executionCtx.waitUntil(
+    sendEmail({
+      to: 'marcuswilson.22@gmail.com',
+      subject: `New comment on: ${ticket.subject}`,
+      message: `${session.email} commented on ticket "${ticket.subject}":\n\n${text}`,
+    })
+  );
+
   return c.redirect(`/dashboard/tickets/${id}?msg=commented`);
 });
 
