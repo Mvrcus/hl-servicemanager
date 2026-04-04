@@ -335,6 +335,7 @@ app.post('/tickets/:id', async (c) => {
         to: ticket.submitted_by,
         subject: `Ticket update: ${ticket.subject}`,
         message: `Your ticket "${ticket.subject}" status has been updated from ${ticket.status.replace('_', ' ')} to ${status.replace('_', ' ')}.`,
+        contact_email: ticket.submitted_by,
       })
     );
   }
@@ -360,6 +361,7 @@ app.post('/tickets/:id/comments', async (c) => {
         to: ticket.submitted_by,
         subject: `Reply on: ${ticket.subject}`,
         message: `Your service provider replied to "${ticket.subject}":\n\n${text}`,
+        contact_email: ticket.submitted_by,
       })
     );
   }
@@ -494,26 +496,30 @@ app.post('/settings/test-email', async (c) => {
     return c.redirect('/admin/settings?msg=test_failed');
   }
 
-  const tests: Record<string, { to: string; subject: string; message: string }> = {
+  const tests: Record<string, { to: string; subject: string; message: string; contact_email: string }> = {
     new_ticket: {
       to: adminEmail,
       subject: 'TEST: New ticket — Workflow automation request',
       message: 'New high priority ticket from jane@demoagency.com (Demo Agency):\n\nWorkflow automation request\n\nThis is a test email simulating a new ticket submission from a client.',
+      contact_email: 'jane@demoagency.com',
     },
     client_comment: {
       to: adminEmail,
       subject: 'TEST: New comment on — Workflow automation request',
       message: 'jane@demoagency.com commented on ticket "Workflow automation request":\n\nThis is a test email simulating a client adding a comment to a ticket.',
+      contact_email: 'jane@demoagency.com',
     },
     status_update: {
       to: adminEmail,
       subject: 'TEST: Ticket update — Workflow automation request',
       message: 'Your ticket "Workflow automation request" status has been updated from open to in progress.\n\nThis is a test email simulating a status change notification sent to a client.',
+      contact_email: 'jane@demoagency.com',
     },
     admin_reply: {
       to: adminEmail,
       subject: 'TEST: Reply on — Workflow automation request',
       message: 'Your service provider replied to "Workflow automation request":\n\nThis is a test email simulating an admin reply notification sent to a client.',
+      contact_email: 'jane@demoagency.com',
     },
   };
 

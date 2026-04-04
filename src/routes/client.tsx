@@ -158,6 +158,7 @@ app.post('/tickets', async (c) => {
           to: adminEmail,
           subject: `New ticket: ${subject}`,
           message: `New ${priority} priority ticket from ${session.email} (${session.orgName}):\n\n${subject}\n\n${description}`,
+          contact_email: session.email!,
         });
       }
     })()
@@ -246,6 +247,7 @@ app.post('/tickets/:id/comments', async (c) => {
           to: adminEmail,
           subject: `New comment on: ${ticket.subject}`,
           message: `${session.email} commented on ticket "${ticket.subject}":\n\n${text}`,
+          contact_email: session.email!,
         });
       }
     })()

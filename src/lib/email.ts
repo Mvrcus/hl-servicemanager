@@ -6,6 +6,7 @@ export async function sendEmail(
     to: string;
     subject: string;
     message: string;
+    contact_email: string;
   }
 ): Promise<void> {
   const settings = await getAllSettings(db);
@@ -22,6 +23,7 @@ export async function sendEmail(
       to: params.to,
       subject: params.subject,
       message: params.message,
+      contact_email: params.contact_email,
     }),
   });
 }
