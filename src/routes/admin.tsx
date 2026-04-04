@@ -331,13 +331,17 @@ app.post('/tickets/:id', async (c) => {
   // Notify client of status change
   if (ticket && ticket.status !== status) {
     c.executionCtx.waitUntil(
-      sendEmail(c.env.DB, {
-        to: ticket.submitted_by,
-        subject: `Ticket update: ${ticket.subject}`,
-        message: `Your ticket "${ticket.subject}" status has been updated from ${ticket.status.replace('_', ' ')} to ${status.replace('_', ' ')}.`,
-        contact_email: ticket.submitted_by,
-        type: 'status_update',
-      })
+      (async () => {
+        const s = await getAllSettings(c.env.DB);
+        await sendEmail(c.env.DB, {
+          to: ticket.submitted_by,
+          subject: `Ticket update: ${ticket.subject}`,
+          message: `Your ticket "${ticket.subject}" status has been updated from ${ticket.status.replace('_', ' ')} to ${status.replace('_', ' ')}.`,
+          contact_email: ticket.submitted_by,
+          from_name: s.company_name || 'HL Service Manager',
+          type: 'status_update',
+        });
+      })()
     );
   }
 
@@ -358,13 +362,17 @@ app.post('/tickets/:id/comments', async (c) => {
   // Notify client of admin reply
   if (ticket) {
     c.executionCtx.waitUntil(
-      sendEmail(c.env.DB, {
-        to: ticket.submitted_by,
-        subject: `Reply on: ${ticket.subject}`,
-        message: `Your service provider replied to "${ticket.subject}":\n\n${text}`,
-        contact_email: ticket.submitted_by,
-        type: 'admin_reply',
-      })
+      (async () => {
+        const s = await getAllSettings(c.env.DB);
+        await sendEmail(c.env.DB, {
+          to: ticket.submitted_by,
+          subject: `Reply on: ${ticket.subject}`,
+          message: `Your service provider replied to "${ticket.subject}":\n\n${text}`,
+          contact_email: ticket.submitted_by,
+          from_name: s.company_name || 'HL Service Manager',
+          type: 'admin_reply',
+        });
+      })()
     );
   }
 
@@ -549,9 +557,10 @@ app.post('/settings/email-setup', async (c) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: fromEmail,
+        from_name: settings.company_name || 'HL Service Manager',
         to: settings.admin_email,
         subject: 'HL Service Manager — Setup Payload (map these fields)',
-        message: 'This is a setup payload from HL Service Manager. Map each field in your email automation:\n\n• from — sender address\n• to — recipient address\n• subject — email subject line\n• message — email body\n• contact_email — the person this email is about\n• type — notification type (new_ticket, client_comment, status_update, admin_reply)',
+        message: 'This is a setup payload from HL Service Manager. Map each field in your email automation:\n\n• from — sender address\n• from_name — display name of the sender (company name or contact email)\n• to — recipient address\n• subject — email subject line\n• message — email body\n• contact_email — the person this email is about\n• type — notification type (new_ticket, client_comment, status_update, admin_reply)',
         contact_email: settings.admin_email,
         type: 'setup',
       }),
@@ -581,12 +590,14 @@ app.post('/settings/test-email', async (c) => {
     return c.redirect('/admin/settings?msg=test_failed');
   }
 
-  const tests: Record<string, { to: string; subject: string; message: string; contact_email: string; type: 'new_ticket' | 'client_comment' | 'status_update' | 'admin_reply' }> = {
+  const companyName = settings.company_name || 'HL Service Manager';
+  const tests: Record<string, { to: string; subject: string; message: string; contact_email: string; from_name: string; type: 'new_ticket' | 'client_comment' | 'status_update' | 'admin_reply' }> = {
     new_ticket: {
       to: adminEmail,
       subject: 'TEST: New ticket — Workflow automation request',
       message: 'New high priority ticket from jane@demoagency.com (Demo Agency):\n\nWorkflow automation request\n\nThis is a test email simulating a new ticket submission from a client.',
       contact_email: 'jane@demoagency.com',
+      from_name: 'jane@demoagency.com',
       type: 'new_ticket',
     },
     client_comment: {
@@ -594,6 +605,7 @@ app.post('/settings/test-email', async (c) => {
       subject: 'TEST: New comment on — Workflow automation request',
       message: 'jane@demoagency.com commented on ticket "Workflow automation request":\n\nThis is a test email simulating a client adding a comment to a ticket.',
       contact_email: 'jane@demoagency.com',
+      from_name: 'jane@demoagency.com',
       type: 'client_comment',
     },
     status_update: {
@@ -601,6 +613,7 @@ app.post('/settings/test-email', async (c) => {
       subject: 'TEST: Ticket update — Workflow automation request',
       message: 'Your ticket "Workflow automation request" status has been updated from open to in progress.\n\nThis is a test email simulating a status change notification sent to a client.',
       contact_email: 'jane@demoagency.com',
+      from_name: companyName,
       type: 'status_update',
     },
     admin_reply: {
@@ -608,6 +621,7 @@ app.post('/settings/test-email', async (c) => {
       subject: 'TEST: Reply on — Workflow automation request',
       message: 'Your service provider replied to "Workflow automation request":\n\nThis is a test email simulating an admin reply notification sent to a client.',
       contact_email: 'jane@demoagency.com',
+      from_name: companyName,
       type: 'admin_reply',
     },
   };

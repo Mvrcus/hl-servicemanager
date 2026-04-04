@@ -9,6 +9,7 @@ export async function sendEmail(
     subject: string;
     message: string;
     contact_email: string;
+    from_name: string;
     type?: EmailType;
   }
 ): Promise<void> {
@@ -23,6 +24,7 @@ export async function sendEmail(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: fromEmail,
+      from_name: params.from_name,
       to: params.to,
       subject: params.subject,
       message: params.message,
